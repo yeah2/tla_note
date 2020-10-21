@@ -1,0 +1,485 @@
+怎么拼接字符串？
+怎么计算状态个数？条件组合是怎么计算的？
+[Next]_vars(Next sub vars) 什么意思？
+
+=概述
+TLA+ is a mathematical description language. 
+TLA stands for the Temporal Logic of Actions(行为时态逻辑), but it has become a shorthand for referring to the TLA+ specification language and the PlusCal algorithm language, together with their associated tools.
+TLA+ is based on the idea that the best way to describe things formally is with simple mathematics, and that a specification language should contain as little as possible beyond what is needed to write simple mathematics precisely. TLA+ is especially well suited for writing high-level specifications of concurrent and distributed systems.
+
+一个系统的执行可以表示为一个离散步骤序列（A sequence of discrete steps）
+状态机
+对于一个系统来说，TLA+ 会将其抽象为状态机。一个状态机可以被如下描述：
+  所有可能的初始状态
+  对于任意状态，后面的状态是什么
+状态就是一次对变量的赋值，继续做如下描述：
+  变量是什么
+  变量的所有可能初始值
+  在当前状态下这些变量的值以及在下一个状态下这些变量的可能的值之间的关系
+
+思维转变：how to find the value you want ==>  the properties of what you want. 
+
+=概念定义
+formula
+A TLA formula is true or false on a behavior, which is a sequence of states, where a state is an assignment of values to variables.
+Systems are real; behaviors are mathematical ob jects. 
+To decide if a system S satisfies formula II, we must first have a way of representing an execution of S as a behavior (a sequence of states). Given such a representation, we say that system S satisfies formula II (or that S implements the specification II) iif (if and only if) II is true for every behavior corresponding to a possible execution of S.
+
+behavior (sequence of states)
+The semantics of temporal logic is based on behaviors, where a behavior is an infinite sequence of states. Think of a behavior as the sequence of states that a computing device might go through when executing an algorithm. (It might seem that a terminating execution would be represented by a finite sequence of states, but we will see in Section 5.5 why infinite sequences are enough.)
+
+state
+an assignment of values to variables.
+
+action (boolean-valued expression, atomic)
+An action is a boolean-valued expression formed from variables, primed variables, and constant symbols—for example, x‘ +1= y and x − 1 ∈/ z‘ are actions, where x, y, and z are variables.
+An action represents a relation between old states and new states, where the unprimed variables refer to the old state and the primed variables refer to the new state. Thus, y = x‘ + 1 is the relation asserting that the value of y in the old state is one greater than the value of x in the new state. An atomic operation of a concurrent program will be represented in TLA by an action.
+
+step
+The pair of states s,t is called an “A step” iff s[[A]]t equals true. If action A represents an atomic operation of a program, then s,t is an A step iff executing the operation in state s can produce state t.
+
+X = ^ x' = x + 1   \* An X step is one that increments x and leaves y unchanged.
+    ^ y' = y 
+Y = ^ y' = y + 1   \* A Y step is one that increments y and leaves x unchanged.
+    ^ x' = x 
+Formulas X and Y are called actions. 
+An action is true or false on a step, which is a pair of states -- an old state, described by unprimed variables, and a new state, described by primed variables.
+
+下标的含义
+表示允许下标变量保持不变，这样的Step称之为stuttering steps(假步，哑动作)。变量保持不变，也是满足相应的Action的
+For any action (Boolean formula containing constants, variables and primed variables) A and every state function (expression containing only constants and unprimed variables) f , we define 
+  [A]_f = A \/ (f' = f)
+where f' is the expression obtained by priming all the variables in f . 
+Thus, a step satisfies [A]_f iff it satisfies A or it leaves f unchanged. 
+The formula [][A]_f asserts that every step is an A step (one that satisfies A) or leaves f unchanged. 
+Hence, the conjunct [][x' = x + 1]_x of II does allow steps that leave x unchanged. Such steps are called stuttering steps.
+
+TLA通过引入哑动作，使得系统具有自反性质，从而 将所有的有限行为统一为无限行为，但同时在系统中添加了多余的无关路径。
+为保证所要求的动作能足够多次发生，在实际建模时必须考虑动作的公平性要求。
+
+[Next]_vars
+Remember that this action false on a step means that the step neither satisfies the action Next nor leaves the tuple vars of variables unchanged.
+
+fairness: 
+the property that if a given label is always enabled, we will eventually run it. We make this happen by specifying the process as a fair process.
+Regular processes can stutter. Sometimes this is part of what you expect in your system- maybe you can’t rely on the message queue always being available. If not, though, you need to explicitly use fair process.
+
+Fairness properties are liveness properties which guarantee some "fair" behavior. Let's consider the following example:
+
+There is a (reliable) channel connecting a sender and a receiver. Now, we want to guarantee that when the sender sends a message, the receiver will indeed receive it, i.e. get its contents. This will hold when we assume weak fairness on receiving the message. Why? 
+Weak fairness says that when an action is (continuously)  enabled, the action will be (eventually) executed. When the sender sends the message and the message reaches the other end of the channel, the receiver is allowed to receive the message (i.e. the action is enabled). The receiver could decide to do something else, while the action will still be enabled without the receiver reading its contents. Assuming weak fairness on receiving the message implies that the receiver can do something else, but at some moment, will indeed get the message.
+If there is some point from which the action is enabled, then it will be applied.
+
+strong fairness
+Now, strong fairness implies weak fairness, but the other way around doesn't work.
+Strong fairness relaxes the assumption that the action needs to be continuously enabled to be applied. Instead, it requires it to be enabled infinitely often (possible with intervals where it is not enabled).
+Considering the previous example, let's now assume that the channel isn't reliable, that is, it sometimes loses messages. Then the sender sends the message, and it may get or not to the end of the channel. Since the sender doesn't know if the message was lost it continues sending the same copy of that message (for instance, until receiving acknowledge). Now, while the receiver is doing other things, at some moments the message could be ready to be read, or it may be erased, but as long as the message is sent, there will be infinite states in which the receiver could read its contents. Then assuming strong fairness says that if the action of reading the message contents is infinitely often enabled, it will be done. 
+
+Note that for weak fairness we have written F G for the first part, whereas for strong fairness we have written G F. 
+F G says that there is a point in the future from which the action will always be enabled, and G F says that the action will be enabled an infinite number of times (but not necessarily continuously).
+
+动作A对某个状态具有弱公平性 是指从该状态开始，动作A或者最终被执行，或者在它被执行前失去了使能条件
+动作A的强公平性 是指动作A或者最终被执行，或者最终永远不具备使能条件
+
+weak fairness
+WF_vars(A) 读作 WF of A
+WF of A means weak fairness of the action A and vars prime not equal to vars. 表示vars' /= vars
+WF_vars(A) asserts of a behavior:
+	If A ∧ (vars' /= vars) ever remains continuously enabled,
+	then an A ∧ (vars' /= vars) step must eventually occur.
+An A ∧ (vars' /= vars) step is a non-stuttering A step.
+
+Weak fairness of A-send and B-send are true for this behavior because A-send and B-send steps keep occurring.
+these weak fairness conditions don’t imply that any A-receive or B-recieve steps ever occur, because those actions keep getting disabled.
+
+WF_vars(A) 
+weak fairness of A means if A ever remains continuously enabled, then an A step must eventually occur.
+SF_vars(A) 
+Strong fairness of A means that if A ever is repeatedly enabled, then an A step must eventually occur.
+
+WF_f(A) (Weak fairness of A)   Satisfied by a behavior iff A ^ (f' /= f ) is infinitely often not enabled, or infinitely many A ^ (f' /= f ) steps occur.
+SF_f(A) (Strong fairness of A) Satisfied by a behavior iff A ^ (f' /= f ) is only  finitely often enabled, or infinitely many A ^ (f' /= f ) steps occur.
+
+
+=TLA 语言
+Beyond the basic four types in TLA+ (number, string, boolean, model value), there are two ‘complex’ types: set, function. 
+
+打印输出(可以利用输出来看执行步骤)
+print <<"A", self>> ;
+转成TLA+ 语句为 PrintT(<<"A", self>>)
+
+
+For example, the largest element of a set is 
+  CHOOSE x \in S : \A y \in S : y <= x
+That’s not an algorithm. It’s just “the number that’s bigger than the other numbers.”
+
+
+operator (use ==)
+An operator is a thing that does a thing. It’s what programmers might refer to as a function. You use a == to define them.
+
+Higher-Order Operators
+You can write operators that take other operators if you use a special syntax:
+	Sum(a, b) == a + b
+	Do(op(_,_), a, b) == op(a, b)
+	Do(Sum, 1, 2) = 3
+
+expression
+an expression is anything that follows a ==, =, :=, or \in. 
+
+我们已经使用了这些：/\is“and”，\/is“or”。我们可以用它们连接表达式。
+一个微妙之处在于，这是唯一一种TLA+区分空格的情况。如果以缩进连接开始一行，TLA+会将其视为子句的开始
+
+LET-IN
+Any expression can use LET-IN to add local operators and definitions to just that expression alone.
+	LET IsEven(x) == LET Two == 2
+											 Zero == 0
+									 IN x % Two = Zero
+			Five == 5
+	IN  IsEven(Five)
+
+Tuples
+Tuples are pretty much what you think they are. They have an ordering and everything. You specify them with <<>> and they are 1-indexed.
+DOMAIN operator
+DOMAIN Tuple is the set 1..Len(Tuple). For example, DOMAIN <<"hello", "world", "!">> = {1, 2, 3}.
+EXTENDS Sequences
+If you add EXTENDS Sequences to your spec, they also do double duty as sequences, which adds some more functionality. None of these operations will mutate the sequence. If you want to pop the head, for example, you have to do seq := Tail(seq).
+Note that these use parenthesis, unlike DOMAIN, SUBSET, and UNION. A very rough rule of thumb is that if it’s from a module, it uses parenthesis, and if it’s part of the core language, it will be in ALL CAPS.
+经验法则：如果operator是来自module则要用括号，名字只有首字母大写；如果是来自核心语言，则是全部大写
+
+Structures
+Structures are hashes. They have keys and values. You specify them as [key |-> value] and query them with either ["key"] or .key. Both are legal and valid.
+	x == [a |-> 1, b |-> {2, 3}];
+	x.a = 1;
+	x["b"] = {2, 3};
+
+这种 key : set 写法得到的不是一个structure，而是得到所有structure的集合：
+	x == [a : {1}, b : {2, 3}];
+	x = { [a |-> 1, b |-> 2], [a |-> 1, b -> 3] }
+DOMAIN structures 返回structure的key集合(字符串)
+使用 key : values 语法时，如values不是集合则会error
+
+Filtering
+We can filter a set with {x \in S: P(x)}, which is the set of all x \in S where P(x) is true. For example, {x \in 1..8 : x % 2 = 1} is the set {1, 3, 5, 7}. P must return a boolean, so { x \in 1..4 : x * x } raises an error.
+P(x) 必须返回Boolean值 
+
+Mapping
+{P(x): x \in S} applies P to every element in the set. 
+{ x * x : x \in 1..4 } is the set {1, 4, 9, 16}. { x % 2 = 1:x \in 1..8 } is the set {TRUE, FALSE} (集合中的成员不能重复，所以只有两个值)
+多个集合 mapping写法
+  {P(x, y, ...) : x \in S, y \in T, ...}
+
+CHOOSE
+CHOOSE x \in S : P(x) is some x where P(x) is true. 
+CHOOSE x \in 1..8 : x % 2 = 1 will be one of 1, 3, 5, 7. 
+TLC does not branch here; while the number it chooses is arbitrary, it will always return that number. This is similar to how CASE statements work: 
+CHOOSE x \in S : TRUE is some element of S, but TLC won’t check all of them.
+
+S1 \ S2	The elements in S1 not in S2	{1, 2} \ {2, 3} = {1}, {2, 3} \ {1, 2} = {3}
+SUBSET S	The set of all subsets of S	SUBSET {1, 2} = {{}, {1}, {2}, {1, 2}}
+UNION S	Flatten set of sets	UNION {{1}, {1, 2}, {5}} = {1, 2, 5}
+EXTENDS FiniteSets, 才能用 IsFiniteSet(S), Cardinality(S)
+
+\E
+\E means “exists”. We write \E x \in S : P(x) to say “there is at least one x in the set such that P(x) is true.” 
+~\E is the opposite: it says that there are no such elements. 
+\E x \in {}: Foo is always false, since there are no elements in {}.
+
+\A
+\A means “all”. We write \A x \in S : P(x) to say “For every x in the set, P(x) is true.” 
+~\A is the opposite: it says that there is at least one element where P(x) is false. 
+\A x \in {}: Foo is always true, since there are no elements in {}, so all zero elements pass the test. \A x \in {}: FALSE is still true!
+
+=>
+P => Q means “If P is true, then Q must also be true.” Note that P can be false and Q can be true, or both can be false. 
+It’s equivalent to writing ~P \/ Q, which is how TLC interprets it.
+成立的情况   TRUE=>TRUE, FALSE=>TRUE, FALSE=>FALSE
+不成立的情况 TRUE=>FALSE
+
+<=>
+P <=> Q means “Either both P and Q are true or both are false.” It’s equivalent to writing (~P /\ ~Q) \/ (P /\ Q). 
+P <=> ~Q is P XOR Q.
+
+Both => and <=> follow the same precedence rules as logical junctions. 
+优先级由缩进来控制
+
+Function
+functions are closer in nature to hashes or dictionaries, except that you can choose to programmatically determine the value from the key. There are two ways to define a function:
+	Function == [s \in S |-> foo]
+	Function[s \in S] == foo
+You call a function with f[x], just like tuples and structs do. That’s because tuples and structs are functions! Specifically, tuples are just functions where the domain is 1..n. One consequence of this is that TLA+ is essentially structurally subtyped. If you write Squares == [n \in 1..100 |-> n * n], then Squares is also by definition a sequence, and you can use sequence operators on it.
+
+Function Sets
+SetOfFunctions == [A -> B]
+That generates every function which maps an element of A to an element of B. A and B must be sets or expressions that evaluate to sets.
+
+|-> and -> are different. This is going to mess you up at least once. Use |-> when you want one function that maps the domain to a specific range. Use -> when you want the set of functions that maps the domain to the range.
+S == {1, 2}
+[s \in S |-> S] = [1 |-> {1, 2}, 2 |-> {1, 2}]
+[S -> S] = {[1 |-> 1, 2 |-> 1], [1 |-> 1, 2 |-> 2], [1 |-> 2, 2 |-> 1], [1 |-> 2, 2 |-> 2]} 
+
+[n \in {1,2} |-> {"a","b"}] = <<{"a", "b"}, {"a", "b"}>>
+[n \in {"a","b"} |-> {1,2}] = [a |-> {1, 2}, b |-> {1, 2}]
+
+[{1,2} -> {"a","b"}] = {<<"a", "a">>, <<"a", "b">>, <<"b", "a">>, <<"b", "b">>}
+[{"a","b"} -> {1,2}] = {[a |-> 1, b |-> 1], [a |-> 1, b |-> 2], [a |-> 2, b |-> 1], [a |-> 2, b |-> 2]}
+
+[S -> T]：
+得到一个Set，里边的成员是Structures， [S -> T] 得到的结果Set成员个数为: t^s, t=Len(T), s=Len(S)
+S中第1个成员先map到T中第1个成员，然后S中后续成员都map到T中第1个成员，输出第1个function; 
+然后S中最后1个成员map变化到T中第2个成员，输出第2个function; 
+依次倒推，倒推到S中第1个后，S中第1个成员map到T中第2个成员，后续成员重复前面的全部过程
+看一个稍复杂的情况即可明白:
+[{"a","b", "c"} -> {1,2}] = 
+{[a |-> 1, b |-> 1, c |-> 1],
+ [a |-> 1, b |-> 1, c |-> 2],
+ [a |-> 1, b |-> 2, c |-> 1],
+ [a |-> 1, b |-> 2, c |-> 2],
+ [a |-> 2, b |-> 1, c |-> 1],
+ [a |-> 2, b |-> 1, c |-> 2],
+ [a |-> 2, b |-> 2, c |-> 1],
+ [a |-> 2, b |-> 2, c |-> 2] }
+
+S × T × U = {<a,b,c> : a ∈ S, b ∈ T c ∈ U} \* 注：没找到扁小于号，用ascii 小于(<)代替
+
+People == {"Tom", "Mary", "Jack", "Leo"}
+Animals == {"cat", "dog"}
+Likes = {"like", "hate", "neutral"}
+Pref == [People -> [Animals -> Likes]] \*将会产生的集合成员个数： 4^3^2, 以最大的数字为底，其他数字相乘为幂
+
+Max(S) == CHOOSE x \in S : \A y \in S : y <= x
+等同于 CHOOSE x \in S : (\A y \in S : y <= x) 
+即找到一个x,让集合中的每个成员都满足条件 y<=x, 这是能找到的：即最大的那个值。
+如果条件是 y<x，就找不到；如果把集合中成员减少1个，则y<x条件有可能满足。
+
+LargestTwinPair(S) == CHOOSE <<x, y>> \in S \X S: 
+   /\ IsPrime(x)
+   /\ IsPrime(y)
+   /\ x = y - 2
+   /\ \A <<w, z>> \in S \X S:
+        /\ IsPrime(z)
+        /\ IsPrime(w)
+        /\ w = z - 2
+        => z <= y \* 把=>改成/\则是不行的：不满足条件的组合非常多；蕴含关系则是检查两边条件同时成立的情况是否存在，如存在则为TRUE
+LargestTwinPair(1..23) 返回 <<>17,19>
+
+:>：d:>e 等价于x \in d |->e, e为集合。相当于集合映射
+@@：合并，联合。 f@@g等价于[x \in (DOMAIN f) U (DOMIN g) |-> IF x \in DOMIN f THEN f[x] ELSE g[fx]] 即某个索引在两个domain中都有，则用前面那个的值
+[x, y \in {2,3} |-> x + y] = (<<2, 2>> :> 4 @@ <<2, 3>> :> 5 @@ <<3, 2>> :> 5 @@ <<3, 3>> :> 6)
+
+MODEL VALUES
+The only way to use it is to define a constant and then assign it such a value in the model overview. A constant with a “model value” is only equal to itself.
+即值等于名字
+set of model values: 定义一个集合，集合中常量名字可以用到其他常量中；(不同于定义普通的字符串常量，字符串是要双引号包起来的)
+
+process 转成TLA+时，没有相应的关键字，对应的是一个 operator
+
+process foo \in 1..2
+variable x \in 1..2
+转成TLA+为
+ProcSet == (1..3)
+Init == /\ x \in [1..3 -> 1..2]
+
+When we translate an algorithm, TLA+ will create all of the corresponding variables. When we have multiple processes, TLA+ will instead create a function with a domain on the process identifiers and the range the actual values of x per process. 
+So instead of having for example x \in 1..2, we instead have x == [ProcSet -> 1..2]. So in this case, the appropriate invariant is x[1] + x[2] /= 4.
+
+await
+blocked until the await is true. 
+
+Spec == Init /\ [][Next]_vars
+#fair process 生成的代码跟上面的区别：
+Spec == /\ Init /\ [][Next]_vars
+        /\ \A self \in 1..2 : WF_vars(p(self))
+
+Liveness
+Whenever we write invariants, we’re saying “for an arbitrary state, this will never happen.” And this has been very useful. 
+But safety only tells us that bad things won’t happen. Sometimes, we want to ask a whether good things do happen. 
+Will the trade eventually happen? Does every thread at some point get priority? Does our algorithm finish?
+We call these properties Liveness. To specify these temporal properties, we use a few new operators.
+
+[]
+[]P means that P is true for all states. In other words, an invariant. When you put P in the invariant box, TLC interprets that as the temporal property []P. The only difference is that TLC is hyper-optimized to handle invariants, so the entire invariants box is basically a convenience thing. So while [] implicitly powers all of our invariants, we almost never need to write it explicitly.
+
+<>
+<> means eventually: <>P means that for every possible behavior, at least one state has P as true. 
+For example, the following code is wrong under the temporal property <>(x = 1)
+	(* --algorithm example
+	variables x = 3
+	begin
+		while x > 0 do
+		with decrement \in {1, 2} do
+			x := x - decrement
+		end with;
+		end while;
+	end algorithm; *)
+There exists one timeline where x never passes through 1: “x = 3 -> x = 2 -> x = 0”. So it’s not true that ‘eventually, x is 1’. As long as every behavior has at least one state satisfying the statement, an eventually is true.
+
+~>
+~> means leads to: P ~> Q implies that if P ever becomes true, at some point afterwards Q must be true. For example:
+	(* --algorithm example
+	variables x = 4, decrement \in {1, 2}
+	begin
+		while x > 0 do
+			x := x - decrement
+		end while;
+	end algorithm; *)
+As with before, <>(x = 1) is not true: we can do 4 -> 2 -> 0. But the temporal property (x = 3) ~> (x = 1) is true: there’s no way to pass through 3 without also passing through 1 (disregarding stuttering).
+
+<>[]
+<>[] means stays as: <>[]P says that at some point P becomes true and then stays true. If your program terminates, the final state has to have P as true. Note that P can switch between true and false, as long as it eventually becomes permanently true.
+
+
+stuttering
+This is called stuttering. The problem is that the system can choose not to run any step at all. 
+This has never been a problem before because we were making sure things didn’t break if time passed, but now things break if time doesn’t pass.
+
+
+一个能够描述任意时钟的方程，必须允许在某些步中，hr保持不变，它们叫做假步(stuttering steps)。
+
+计算状态数
+多线程条件下，如下实例：假设进程数为p，分支数为b，则每个分支出现的状态数为公式： b*(p+1)^(b-1)，本例为: 3*(2+1)^(3-1)=27; 这种计算似乎没意义：分支中加了一些变量赋值后结果就会变化了。
+process p \in 1..2
+begin
+  A:
+    print <<"A", self>> ;
+  B:
+    print <<"B", self>> ;
+  C:
+    print <<"C", self>> ;
+end process
+
+Seq(S) == UNION {[1..n -> S] : n \in Nat} 
+\* The set of all sequences of elements in S.  
+Seq(S) 结果是一个Set，其成员是Tuple；
+S是Set，不能是Tuple；
+Seq(S)有无限种组合，一个Tuple中只要都是S中元素，则一定是包含在Seq(S)中
+如 <<"a", "a", "b">> \in Seq({"a", "b"}) == TRUE
+TLC evaluate constant expression 中 Seq({"a", "b"})只会原样输出表达式，因为它的组合无法穷举并输出。
+
+Determine if all elements of a sequence belong to a set.
+	sequence \in Seq(S)
+Tuples of length n
+	Tup(Set, n) == [1..n -> Set]
+	ie Tup(S, 3) == S \X S \X S.
+Sequences up to length n
+We can’t do {seq \in Seq(S) : Len(seq) <= n} because Seq is infinite. This is an alternative for cases where you want to work with sets of sequences and are fine capping them to a certain length.
+	SeqMaxLen(S, n) ==  UNION {[1..m -> S] : m \in 0..n}
+	ie SeqMaxLen(S, 2) == {<<>>} \union Tup(S, 1) \union Tup(S, 2). This can also be done with SetReduce:
+	SeqMaxLen(S, n) == LET _op(a, b) == Tup(S, a) \union Tup(s, b)
+					IN SetReduce(_op, 1..n, {<<>>})
+Map
+	SeqMap(Op(_), seq) == [x \in DOMAIN seq |-> Op(seq[x])]
+
+
+
+there are two simple ways to introduce concurrency: 
+with statement 
+either statement
+The important thing is that TLC will run every branch. 
+
+either
+When it encounters an either, it creates a separate behavior and executes a different branch for each one. 
+
+with 
+does the same thing, except instead of creating a new behavior for each possible branch, it creates a behavior for each element in the set. 
+
+while TRUE do 是否退出循环，看的是是否还有新的state产生；而不是看while条件是否为FALSE
+
+ASSUME expression 假设成立的条件。可用来检查常量的赋值是否合理等
+
+A safety formula is a temporal formula that asserts only what may happen.
+More precisely, it’s a temporal formula that if a behavior violates it – meaning that if the formula is false on the behavior, then that violation occurs at some particular point in the behavior. And nothing in the behavior past that point can prevent the violation.
+
+A liveness formula is a temporal formula that asserts only what must happen.
+More precisely, it’s a temporal formula for which a behavior can not violate it at any particular point.
+
+<>p equals ~[] ~p
+
+Whenever we write invariants, we’re saying “for an arbitrary state, this will never happen.” And this has been very useful. But safety only tells us that bad things won’t happen. Sometimes, we want to ask a whether good things do happen. Will the trade eventually happen? Does every thread at some point get priority? Does our algorithm finish?
+
+<>
+<> means eventually: <>P means that for every possible behavior, at least one state has P as true. 
+For example, the following code is wrong under the temporal property <>(x = 1)
+
+(* --algorithm example
+variables x = 3
+begin
+  while x > 0 do
+  with decrement \in {1, 2} do
+    x := x - decrement
+  end with;
+  end while;
+end algorithm; *)
+
+There exists one timeline where x never passes through 1: “x = 3 -> x = 2 -> x = 0”. So it’s not true that ‘eventually, x is 1’. 
+As long as every behavior has at least one state satisfying the statement, an eventually is true.
+
+<>[]
+<>[] means stays as: <>[]P says that at some point P becomes true and then stays true. If your program terminates, the final state has to have P as true. Note that P can switch between true and false, as long as it eventually becomes permanently true.
+
+Seq(S) == UNION {[1..n -> S] : n \in Nat}
+
+
+pc 即program control的意思
+
+TLA+ 在编程语言的层面上是无类型的，类型不变量只是一个 TLA+ 中的公式。
+标识符与==右边的表达式是互为替换（前提是不破坏优先级）的关系。标识符不能重复定义。
+通过[field1 |-> value1, ...]表示record.field1 = value1 /\ ...。
+通过[field1 : type1, ...]限定域的类型。
+这样就可以表示为
+TypeInvariant  ==  chan \in [val : Data,  rdy : {0, 1},  ack : {0, 1}]
+EXCEPT与!组合表明新记录在某些域上有新取值，@表示这个域的旧值。
+
+算数
+最基本的整数算数运算包含在 TLA+ 的 Integers module 里面，主要就是常用的 +，-，*，^ ，% 这些，还包括 >，<，>=，<= 等。
+
+Integers module 同时定义了：
+Int：所有整数
+Nat：所有自然数
+..：m..n 表示了从 m 到 n 之间的所有整数集合
+对于 /，则是在 Real module 里面定义了。Real module 也同时定义了 Real 用来表示所有的实数。
+
+逻辑
+在 TLA+ 里面，TRUE 表示真，而 FALSE 则是假。譬如 1 + 1 = 2 的值是 TRUE，而 1 + 1 = 3 的值是 FALSE。
+
+命题逻辑
+跟整数有加减乘除运算符一样，布尔也有相关的命题逻辑运算符，我们需要知道如下 5 个：
+
+/\：and，当且只有 F 和 G 都等于 TRUE，F /\ G 等于 TRUE
+\/：or，当且只有 F 或者 G 一个等于 TRUE（或者都为 TRUE），F \/ G 等于 TRUE
+~：negation，当且只有 F 等于 FALSE，~F 等于 TRUE
+=>：implication，当且只有 F 等于 FALSE 或者 G 等于 TRUE（或者 F 和 G 都为 TRUE 或者 FALSE），F => G 等于 TRUE
+<=>：equivalence，当且只有 F 和 G 都为 TRUE 或者都为 FALSE，F <=> G 等于 TRUE
+这里我们可能对 => 的定义感到困惑，为什么只有 F 为 TRUE 并且 G 为 FALSE 的时候 F => G 才为 FALSE，我们可以通过 (n > 5) => (n > 3) 来说明，对于整数 n 来说，如果 n 为 6，n > 5 就是 TRUE，自然 n > 3 也是 TRUE，也就是 (n > 5) 蕴含着 (n > 3)，我们可以将 n 设置为 1，4 这些值在自行推导。
+
+谓语逻辑
+在命题逻辑基础上，谓语逻辑扩展了两个运算符，我们叫做量词。一个是全称量词 \A，另一个则是存在量词 \E。
+对于公式 \A x \in S: P(x) 来说，在集合 S 里面所有的 x，P(x) 都必须等于 TRUE，那么该公式值才是 TRUE。
+对于 \E x \in S: P(x) 来说，只要 S 里面一个 x 存在 P(x) 等于 TRUE，那么该公式的值就是 TRUE。
+
+CHOOSE
+CHOOSE 操作符类似于上面说的 \E。对于公式 \E x \in S : P(x) 来说，如果在集合 S 里面存在一个值 x，满足 P(x) 为 TRUE，那么 CHOOSE x \in S : P(x) 就等于这个值。
+当使用 CHOOSE 在集合里面选择了一个值之后，每次执行都会使用这个值，譬如对于 v' = CHOOSE n \in 1..10 : TRUE 来说，我们并不知道 CHOOSE 选择了哪一个值，没准是 1，也没准是 10，但我们能够确定，每次执行都会是这个值。如果我们需要每次使用不同的值，可以通过 \E n \in 1..10 : v' = n 来设置。
+
+集合
+集合应该是 TLA+ 的理论基石，一个集合可能含有有限或者无限个数的元素。譬如所有自然数集合就是是一个无穷集合。集合主要有以下操作：
+\intersect 或者 \cap：两个集合的交集，譬如 {1, 2} \intersect {2, 3} = {2}
+\union 或者 \cup：两个集合的并集，譬如 {1, 2} \union {2, 3} = {1, 2, 3}
+\subseteq：一个集合是否是另一个集合的子集，譬如 {1, 3} \subseteq {1, 2, 3} 等于 TRUE
+\：两个集合的差集，譬如 {1, 2, 3} \ {1, 4} = {2, 3}
+SUBSET：集合的子集，譬如 {1, 2} 的子集就是 {{}, {1}, {2}, {1, 2}}
+UNION：多个集合的并集，譬如 {{1, 2}, {2, 3}, {3, 4}} 的并集就是 {1, 2, 3, 4}
+Cardinality(S)：有限集合 S 中元素的个数
+IsFiniteSet(S)：验证集合 S 是否是有限的还是无限的
+Filter：
+{x \in S : P(x)}：集合由在 S 中满足 P(x) 为 TRUE 的元素构造，譬如 {n \in Nat : n % 2 = 1} 就返回了一个偶数集合
+Mapping:
+{e(x) : x \in S}：集合由在 S 中元素通过 e(x) 得到新值构造，譬如 {2 * n + 1 : n \in Nat} 就返回了一个奇数集合
+
+函数
+TLA+ 里面的函数跟我们程序里面的函数意义是不一样的，反倒有点类似于数组，这点一定要注意。
+对于函数，首先我们需要了解的是值域，我们可以认为就是程序语言里面数组的索引集合，譬如对于 tuple（一种特殊的函数来说），DOMAIN <<"a", "b", "c">> 就是一个 1..3 的集合。
+如果 f 是一个函数，而 x 是 f 值域里面的一个元素，f[x] 就表示的将 f 应用到 x 上面。对于上面的 tuple，<<"a", "b", "c">>[2] 就会得到 "b"，而 <<"a", "b", "c">>[4] 则会报错。
+我们可以通过 [x \in S |-> e]构造任意值域的函数，这里仍然先以 tuple 为例， tuple，一种特殊的函数，它的值域就是集合 1..n，n 为 tuple 的个数。譬如 tuple 可以写成 [ i \in 1..3 |-> i - 7]，这个就会得到 tuple <<-6, -5, -4>>，然后我们可以使用 <<-6, -5, -4>>[1] 得到 -6 了。
+我们再来看一个更通用的例子，[i \in {2, 4, 6, 8} |-> i - 42][4] ，这里我们得到的值是 4 - 42，也就是 38。
+当一个函数 f 的值域在 S，并且 f[x] 在集合 T 里面，我们就可以用 [S -> T] 来表示所有这样函数的集合。
+我们也可以使用 EXCEPT 来构造另一个函数，对于公式 [f EXCEPT ![e1] = e2] 表示新的函数 f’ 等于 f 除了 f'[e1] = e2。我们也可以使用 @ 来表示 f[e1]，譬如 f' = [f EXCEPT ![e1] = f[e1] + 1 中，我们就可以写成 f' = [f EXCEPT ![e1] = @ + 1
