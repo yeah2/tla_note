@@ -28,6 +28,11 @@ To decide if a system S satisfies formula II, we must first have a way of repres
 behavior (sequence of states)
 The semantics of temporal logic is based on behaviors, where a behavior is an infinite sequence of states. Think of a behavior as the sequence of states that a computing device might go through when executing an algorithm. (It might seem that a terminating execution would be represented by a finite sequence of states, but we will see in Section 5.5 why infinite sequences are enough.)
 
+But a behavior represents a history of some entir euniverse containing that system.
+behavior代表了包含这个系统的整个宇宙的历史。
+Stuttering steps make it unnecessary to consider finite behaviors. An execution in which a system halts is represented by an infinite behavior in which the variables describing that system stop changing after a finite number of steps. When a system halts, it doesn't mean that the entire universe comes to an end. Thus, by a behavior, we mean an infinite sequence of states.
+假步让我们没必要考虑有限行为。在一次执行中，系统暂停由无限行为表示：其中描述该系统的变量在有限步数后停止变化。当一个“系统停止”发生时，并不意味着整个世界的末日。因此，我们所说的behavior是指无限的状态序列。
+
 state
 an assignment of values to variables.
 
@@ -44,6 +49,63 @@ Y = ^ y' = y + 1   \* A Y step is one that increments y and leaves x unchanged.
     ^ x' = x 
 Formulas X and Y are called actions. 
 An action is true or false on a step, which is a pair of states -- an old state, described by unprimed variables, and a new state, described by primed variables.
+
+action enabled
+An action A is said to be enabled in a state s iff there exists some state t such that the pair of states <<old-state s; new-state t>> satisfies A. 
+A conjunct with no primes is an assertion about the first state, so it’s an enabling condition for an action.
+
+=weak fairness
+We want to require that x be incremented infinitely many times, so our specification must rule out behaviors in which x is incremented only a finite number of times. This is accomplished by the WF formula.
+我们希望要求x无限次递增，因此我们的规范必须排除x仅递增有限次的行为。这是通过WF公式实现的。
+
+WF_f(A) (此种表示 f 变量保持变化)
+The formula WF_f(A) asserts of a behavior that, if the action A ^ (f' /= f ) ever becomes enabled and remains enabled forever, then infinitely many A ^ (f' /= f ) steps occur. 
+In other words, if it ever becomes possible and remains forever possible to execute an A step that changes f, then infinitely many such steps must occur.
+II = ^ x = 0
+     ^ [][x' = x + 1]_x 
+	 ^ WF_x(x' = x + 1)
+Any integer can be incremented by 1 to produce a different integer. 
+Hence, the action (x' = x + 1) ^ (x' /= x) is enabled in any state where x is an integer. 
+The formula (x = 0) ^ [][x' = x + 1]_x, which asserts that x is initially 0 and in every step is either incremented by 1 or left unchanged, implies that x is always an integer. 
+Hence, this formula implies that (x' = x + 1) ^ (x' /= x) is always enabled. 
+Hence, the conjunct WF_x(x' = x + 1) of II asserts that infinitely many (x' = x + 1) ^ (x' /= x) steps occur. 
+Hence, II asserts that x is incremented infinitely often, as desired.
+
+If A ever remains continuously enabled, then an A step must eventually occur.
+如果A始终保持持续启用状态，则最终必须出现A步骤。
+An equivalent way of saying this is that A cannot remain enabled forever without another A step occurring
+另一种等价的说法是，A不能在不发生另一个A步骤的情况下永远保持启用
+WF of A is a liveness property because, at any point in a behavior, it can be made true by an A step or a state in which A is not enabled.
+
+Strong fairness
+if A ever is repeatedly enabled, then an A step must eventually occur.
+如果A曾经被重复启用，那么最终肯定会出现A步。
+An equivalent way of saying this is that A cannot be repeatedly enabled forever without another A step occurring.
+另一种等价的说法是，A不能在不发生另一个A步骤的情况下永远重复启用
+
+WF_f(A) (Weak fairness of A)   Satisfied by a behavior iff A ^ (f' /= f ) is infinitely often not enabled, or infinitely many A ^ (f' /= f ) steps occur.
+SF_f(A) (Strong fairness of A) Satisfied by a behavior iff A ^ (f' /= f ) is only  finitely often enabled, or infinitely many A ^ (f' /= f ) steps occur.
+
+动作A对某个状态具有弱公平性 是指从该状态开始，动作A或者最终被执行，或者在它被执行前失去了使能条件
+动作A的强公平性 是指动作A或者最终被执行，或者最终永远不具备使能条件
+
+weak fairness
+WF_vars(A) 读作 WF of A
+WF of A means weak fairness of the action A and vars prime not equal to vars. 表示vars' /= vars
+WF_vars(A) asserts of a behavior:
+	If A ∧ (vars' /= vars) ever remains continuously enabled,
+	then an A ∧ (vars' /= vars) step must eventually occur.
+An A ∧ (vars' /= vars) step is a non-stuttering A step.
+
+Weak fairness of A-send and B-send are true for this behavior because A-send and B-send steps keep occurring.
+these weak fairness conditions don’t imply that any A-receive or B-recieve steps ever occur, because those actions keep getting disabled.
+
+WF_vars(A) 
+weak fairness of A means if A ever remains continuously enabled, then an A step must eventually occur.
+SF_vars(A) 
+Strong fairness of A means that if A ever is repeatedly enabled, then an A step must eventually occur.
+
+
 
 下标的含义
 表示允许下标变量保持不变，这样的Step称之为stuttering steps(假步，哑动作)。变量保持不变，也是满足相应的Action的
@@ -78,27 +140,7 @@ Considering the previous example, let's now assume that the channel isn't reliab
 Note that for weak fairness we have written F G for the first part, whereas for strong fairness we have written G F. 
 F G says that there is a point in the future from which the action will always be enabled, and G F says that the action will be enabled an infinite number of times (but not necessarily continuously).
 
-动作A对某个状态具有弱公平性 是指从该状态开始，动作A或者最终被执行，或者在它被执行前失去了使能条件
-动作A的强公平性 是指动作A或者最终被执行，或者最终永远不具备使能条件
 
-weak fairness
-WF_vars(A) 读作 WF of A
-WF of A means weak fairness of the action A and vars prime not equal to vars. 表示vars' /= vars
-WF_vars(A) asserts of a behavior:
-	If A ∧ (vars' /= vars) ever remains continuously enabled,
-	then an A ∧ (vars' /= vars) step must eventually occur.
-An A ∧ (vars' /= vars) step is a non-stuttering A step.
-
-Weak fairness of A-send and B-send are true for this behavior because A-send and B-send steps keep occurring.
-these weak fairness conditions don’t imply that any A-receive or B-recieve steps ever occur, because those actions keep getting disabled.
-
-WF_vars(A) 
-weak fairness of A means if A ever remains continuously enabled, then an A step must eventually occur.
-SF_vars(A) 
-Strong fairness of A means that if A ever is repeatedly enabled, then an A step must eventually occur.
-
-WF_f(A) (Weak fairness of A)   Satisfied by a behavior iff A ^ (f' /= f ) is infinitely often not enabled, or infinitely many A ^ (f' /= f ) steps occur.
-SF_f(A) (Strong fairness of A) Satisfied by a behavior iff A ^ (f' /= f ) is only  finitely often enabled, or infinitely many A ^ (f' /= f ) steps occur.
 
 
 =TLA 语言
@@ -483,3 +525,7 @@ TLA+ 里面的函数跟我们程序里面的函数意义是不一样的，反倒
 我们再来看一个更通用的例子，[i \in {2, 4, 6, 8} |-> i - 42][4] ，这里我们得到的值是 4 - 42，也就是 38。
 当一个函数 f 的值域在 S，并且 f[x] 在集合 T 里面，我们就可以用 [S -> T] 来表示所有这样函数的集合。
 我们也可以使用 EXCEPT 来构造另一个函数，对于公式 [f EXCEPT ![e1] = e2] 表示新的函数 f’ 等于 f 除了 f'[e1] = e2。我们也可以使用 @ 来表示 f[e1]，譬如 f' = [f EXCEPT ![e1] = f[e1] + 1 中，我们就可以写成 f' = [f EXCEPT ![e1] = @ + 1
+
+=tla
+∩ \cap 因为形状像帽子
+∪ \cup 因为形状像茶杯
