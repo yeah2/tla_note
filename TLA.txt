@@ -140,7 +140,14 @@ Considering the previous example, let's now assume that the channel isn't reliab
 Note that for weak fairness we have written F G for the first part, whereas for strong fairness we have written G F. 
 F G says that there is a point in the future from which the action will always be enabled, and G F says that the action will be enabled an infinite number of times (but not necessarily continuously).
 
-
+Many systems use timeouts only to ensure that something must happen.
+By using timeouts only for that purpose, I mean that, correctness of such a system does not depend on how long it takes the timeouts to occur.
+Specifications of these systems can describe timeouts as actions with no time constraints, only weak fairness conditions.
+This is true for most systems with no bounds on how long it can take an enabled operation (such as receiving a message) to occur.
+许多系统使用超时只是为了确保必须发生某些事情。
+仅出于此目的使用超时，我的意思是，这样的系统的正确性并不取决于超时发生的时间有多长。
+这些系统的规范可以将超时描述为没有时间限制的动作，只有弱公平条件。
+对于大多数系统来说，启用的操作(如接收消息)需要多长时间才能发生，这是没有限制的。
 
 
 =TLA 语言
